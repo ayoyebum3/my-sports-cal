@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendrier sportif</title>
+<style>
+  body { font: 17px/1.5 -apple-system, system-ui, sans-serif; max-width: 34rem; margin: 3rem auto; padding: 0 1rem; color: #1d1d1f; background: #fff; }
+  @media (prefers-color-scheme: dark) { body { color: #f5f5f7; background: #1d1d1f; } }
+  a.btn { display: inline-block; padding: .7rem 1.2rem; border-radius: .6rem; background: #0071e3; color: #fff; text-decoration: none; font-weight: 600; }
+  code { word-break: break-all; font-size: .9em; }
+</style>
+</head>
+<body>
+<h1>Calendrier sportif</h1>
+<p><a class="btn" id="abonner" href="sports.ics">S'abonner dans Calendrier</a></p>
+<p>Adresse à coller dans Calendrier (Fichier → Nouvel abonnement à un calendrier) :<br>
+<code id="url"></code></p>
+<script>
+  const u = new URL("sports.ics", location.href);
+  document.getElementById("url").textContent = u.href;
+  document.getElementById("abonner").href = "webcal://" + u.host + u.pathname;
+</script>
+</body>
+</html>

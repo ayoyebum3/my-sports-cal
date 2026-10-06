@@ -1,0 +1,66 @@
+# Configuration du calendrier sportif
+# Modifie ce fichier directement sur GitHub (icône crayon) : le calendrier
+# se régénère tout seul après chaque modification.
+
+nom_calendrier: "Sports"
+fuseau: "America/Toronto"
+
+# --- Sources automatiques (true = inclus, false = exclu) ---------------------
+sources:
+  canadiens: true            # Tous les matchs des Canadiens (saison + séries), API officielle LNH
+  finale_coupe_stanley: true # Finale de la Coupe Stanley, peu importe les équipes
+  nfl_sunday_night: true     # Tous les Sunday Night Football
+  nfl_series: true           # Séries éliminatoires NFL + Super Bowl
+  finale_nba: true
+  finale_wnba: true
+  serie_mondiale_mlb: true
+  coupe_mls: true            # Finale de la Coupe MLS
+
+# --- Équipes supplémentaires (tous leurs matchs), via les données ESPN ------
+# ligue : code ESPN (ex. soccer/usa.1 = MLS, soccer/uefa.champions = Ligue des champions,
+#         basketball/nba, baseball/mlb, football/nfl)
+# equipe : abréviation ESPN de l'équipe (ex. MTL, TOR, BOS)
+equipes_espn: []
+#  - ligue: soccer/usa.1
+#    equipe: MTL
+#    emoji: "⚽"
+
+# --- Événements ajoutés à la main ------------------------------------------
+# Pour une journée entière : date (et date_fin pour plusieurs jours).
+# Pour une heure précise : debut au format "2027-05-20 19:00" (heure de Montréal)
+#   et optionnellement duree_min.
+manuel:
+  # Cyclisme, saison 2026 (fin)
+  - titre: "🚴 Il Lombardia (Bergame → Côme)"
+    date: 2026-10-10
+
+  # Cyclisme, saison 2027 (calendrier UCI WorldTour publié)
+  - titre: "🚴 Milan–San Remo"
+    date: 2027-03-20
+  - titre: "🚴 Tour des Flandres"
+    date: 2027-04-04
+  - titre: "🚴 Paris–Roubaix"
+    date: 2027-04-11
+  - titre: "🚴 Liège–Bastogne–Liège"
+    date: 2027-04-25
+  - titre: "🚴 Giro d'Italia"
+    date: 2027-05-08
+    date_fin: 2027-05-30
+  - titre: "🚴 Tour de France"
+    date: 2027-07-02
+    date_fin: 2027-07-25
+  - titre: "🚴 Vuelta a España"
+    date: 2027-09-04
+    date_fin: 2027-09-26
+  - titre: "🚴 Grand Prix cycliste de Québec"
+    date: 2027-09-10
+  - titre: "🚴 Grand Prix cycliste de Montréal"
+    date: 2027-09-12
+  - titre: "🚴 Il Lombardia"
+    date: 2027-10-09
+
+  # LPHF : la finale de la Coupe Walter n'a pas d'horaire publié.
+  # À ajouter quand il sera annoncé (printemps 2027), par exemple :
+  # - titre: "🏒 LPHF – Coupe Walter, match 1"
+  #   debut: "2027-05-20 19:00"
+  #   duree_min: 165
