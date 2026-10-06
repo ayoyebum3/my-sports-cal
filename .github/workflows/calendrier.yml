@@ -1,0 +1,62 @@
+name: Mettre à jour le calendrier
+
+on:
+  schedule:
+    - cron: "17 10,22 * * *"   # deux fois par jour (6 h 17 et 18 h 17, heure de Montréal l'été)
+  push:
+    branches: [main]
+  workflow_dispatch:            # bouton « Run workflow » pour lancer à la main
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - run: pip install -r requirements.txt
+
+      - name: Générer le calendrier
+        env:
+          PREVIOUS_ICS_URL: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/sports.ics
+        run: |
+          python generate.py --config config.yaml --out public/sports.ics
+          cp index.html public/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+      # GitHub suspend les tâches planifiées après 60 jours sans activité
+      # dans le dépôt : un commit vide le 1er du mois l'évite.
+      - name: Maintenir le dépôt actif
+        if: github.event_name == 'schedule'
+        run: |
+          if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" -lt 16 ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit --allow-empty -m "Maintien mensuel de la tâche planifiée"
+            git push
+          fi
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
