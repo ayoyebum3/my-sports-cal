@@ -42,7 +42,7 @@ jobs:
       # GitHub suspend les tâches planifiées après 60 jours sans activité
       # dans le dépôt : un commit vide le 1er du mois l'évite.
       - name: Maintenir le dépôt actif
-        if: github.event_name == 'schedule'
+        if: ${{ always() && github.event_name == 'schedule' }}
         run: |
           if [ "$(date -u +%d)" = "01" ] && [ "$(date -u +%H)" -lt 16 ]; then
             git config user.name "github-actions[bot]"
