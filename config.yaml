@@ -27,12 +27,18 @@ equipes_espn: []
 
 # --- Événements ajoutés à la main ------------------------------------------
 # Pour une journée entière : date (et date_fin pour plusieurs jours).
-# Pour une heure précise : debut au format "2027-05-20 19:00" (heure de Montréal)
-#   et optionnellement duree_min.
+# Pour une heure précise : debut au format "2027-05-20 19:00" et duree_min.
+#   L'heure est celle de Montréal, sauf si tu ajoutes fuseau (ex. "Europe/Rome")
+#   pour la saisir à l'heure locale de la course; Calendrier convertit.
+# Les classiques 2027 sont en journée entière tant que les organisateurs
+# n'ont pas publié leurs horaires (habituellement quelques semaines avant).
 manuel:
   # Cyclisme, saison 2026 (fin)
   - titre: "🚴 Il Lombardia (Bergame → Côme)"
-    date: 2026-10-10
+    debut: "2026-10-10 11:00"   # heure italienne → 5 h à Montréal
+    fuseau: "Europe/Rome"
+    duree_min: 380              # arrivée prévue vers 17 h 20 en Italie
+    lieu: "Bergame → Côme, Italie"
 
   # Cyclisme, saison 2027 (calendrier UCI WorldTour publié)
   - titre: "🚴 Milan–San Remo"

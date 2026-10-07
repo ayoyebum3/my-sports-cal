@@ -131,17 +131,36 @@ def source_finale_coupe_stanley(today: dt.date) -> list[Event]:
 # --------------------------------------------------------------------------
 def espn_events(ligue: str, today: dt.date, mois: int = 13) -> list[dict]:
     """Tous les événements ESPN d'une ligue, de 14 jours avant à ~13 mois après."""
-    out, vus = [], set()
+    base = f"https://site.api.espn.com/apis/site/v2/sports/{ligue}/scoreboard"
+    urls = []
     debut = today - dt.timedelta(days=14)
     for i in range(mois):
         d1 = debut + dt.timedelta(days=31 * i)
         d2 = d1 + dt.timedelta(days=30)
-        url = (f"https://site.api.espn.com/apis/site/v2/sports/{ligue}/scoreboard"
-               f"?dates={d1:%Y%m%d}-{d2:%Y%m%d}&limit=1000")
-        for ev in fetch_json(url).get("events", []):
-            if ev["id"] not in vus:
+        urls.append(f"{base}?dates={d1:%Y%m%d}-{d2:%Y%m%d}&limit=1000")
+    if ligue == "football/nfl":
+        # Forme de requête propre à la NFL (par semaine), plus fiable que les plages de dates
+        annee = today.year if today.month >= 3 else today.year - 1
+        urls += [f"{base}?dates={annee}&seasontype=2&week={w}" for w in range(1, 19)]
+        urls += [f"{base}?dates={annee}&seasontype=3&week={w}" for w in range(1, 6)]
+
+    out, vus, erreurs = [], set(), []
+    for url in urls:
+        try:
+            evs = fetch_json(url).get("events", [])
+        except Exception as e:  # noqa: BLE001 : une requête ratée ne doit pas tout annuler
+            erreurs.append(f"{url} → {e}")
+            continue
+        for ev in evs:
+            if ev.get("id") and ev["id"] not in vus:
                 vus.add(ev["id"])
                 out.append(ev)
+    for err in erreurs[:3]:
+        print(f"    ! {err}", file=sys.stderr)
+    if erreurs and not out:
+        raise RuntimeError(f"ESPN {ligue} : les {len(urls)} requêtes ont échoué")
+    print(f"    ESPN {ligue} : {len(out)} match(s) reçu(s), "
+          f"{len(erreurs)}/{len(urls)} requête(s) en échec")
     return out
 
 
@@ -235,7 +254,14 @@ def source_manuel(items: list[dict], tz) -> list[Event]:
     for it in items or []:
         cle = re.sub(r"[^a-z0-9]+", "-", it["titre"].lower()).strip("-")
         if "debut" in it:
-            debut = dt.datetime.strptime(str(it["debut"]), "%Y-%m-%d %H:%M").replace(tzinfo=tz)
+            # Heure locale du lieu de l'événement si « fuseau » est précisé,
+            # sinon heure de Montréal. Calendrier l'affiche ensuite à ton heure.
+            tz_ev = ZoneInfo(it["fuseau"]) if it.get("fuseau") else tz
+            brut = it["debut"]
+            if isinstance(brut, dt.datetime):
+                debut = brut.replace(tzinfo=tz_ev)
+            else:
+                debut = dt.datetime.strptime(str(brut)[:16], "%Y-%m-%d %H:%M").replace(tzinfo=tz_ev)
             out.append(Event(uid=f"manuel-{cle}-{debut:%Y%m%d}", titre=it["titre"],
                              debut=debut.astimezone(UTC),
                              duree_min=int(it.get("duree_min", 120)),
