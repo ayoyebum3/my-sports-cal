@@ -18,6 +18,7 @@ import re
 import sys
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from zoneinfo import ZoneInfo
 
 import yaml
@@ -129,38 +130,75 @@ def source_finale_coupe_stanley(today: dt.date) -> list[Event]:
 # --------------------------------------------------------------------------
 # ESPN
 # --------------------------------------------------------------------------
-def espn_events(ligue: str, today: dt.date, mois: int = 13) -> list[dict]:
-    """Tous les événements ESPN d'une ligue, de 14 jours avant à ~13 mois après."""
-    base = f"https://site.api.espn.com/apis/site/v2/sports/{ligue}/scoreboard"
-    urls = []
-    debut = today - dt.timedelta(days=14)
-    for i in range(mois):
-        d1 = debut + dt.timedelta(days=31 * i)
-        d2 = d1 + dt.timedelta(days=30)
-        urls.append(f"{base}?dates={d1:%Y%m%d}-{d2:%Y%m%d}&limit=1000")
-    if ligue == "football/nfl":
-        # Forme de requête propre à la NFL (par semaine), plus fiable que les plages de dates
-        annee = today.year if today.month >= 3 else today.year - 1
-        urls += [f"{base}?dates={annee}&seasontype=2&week={w}" for w in range(1, 19)]
-        urls += [f"{base}?dates={annee}&seasontype=3&week={w}" for w in range(1, 6)]
+_CACHE_ESPN: dict[str, list[dict]] = {}
 
+
+def _collecter(urls: list[str], paralleles: int = 1):
+    """Exécute les requêtes; renvoie (événements uniques, liste d'erreurs)."""
     out, vus, erreurs = [], set(), []
-    for url in urls:
+
+    def un(url):
         try:
-            evs = fetch_json(url).get("events", [])
+            return url, fetch_json(url).get("events", []), None
         except Exception as e:  # noqa: BLE001 : une requête ratée ne doit pas tout annuler
-            erreurs.append(f"{url} → {e}")
-            continue
+            return url, [], e
+
+    if paralleles > 1:
+        with ThreadPoolExecutor(max_workers=paralleles) as pool:
+            resultats = list(pool.map(un, urls))
+    else:
+        resultats = [un(u) for u in urls]
+    for url, evs, err in resultats:
+        if err is not None:
+            erreurs.append(f"{url} → {err}")
         for ev in evs:
             if ev.get("id") and ev["id"] not in vus:
                 vus.add(ev["id"])
                 out.append(ev)
+    return out, erreurs
+
+
+def espn_events(ligue: str, today: dt.date, jours: int = 400) -> list[dict]:
+    """Tous les matchs ESPN d'une ligue, de 14 jours avant à ~13 mois après.
+
+    NFL : requêtes par semaine (forme propre au football).
+    Autres ligues : une plage de dates par mois si ESPN l'accepte, sinon
+    une requête par jour (forme standard, toujours acceptée), en parallèle.
+    """
+    if ligue in _CACHE_ESPN:
+        return _CACHE_ESPN[ligue]
+    base = f"https://site.api.espn.com/apis/site/v2/sports/{ligue}/scoreboard"
+    debut = today - dt.timedelta(days=14)
+
+    if ligue == "football/nfl":
+        annee = today.year if today.month >= 3 else today.year - 1
+        urls = [f"{base}?dates={annee}&seasontype=2&week={w}" for w in range(1, 19)]
+        urls += [f"{base}?dates={annee}&seasontype=3&week={w}" for w in range(1, 6)]
+        mode = "par semaine"
+        out, erreurs = _collecter(urls)
+    else:
+        plages = []
+        for i in range(0, jours, 31):
+            d1 = debut + dt.timedelta(days=i)
+            d2 = d1 + dt.timedelta(days=30)
+            plages.append(f"{base}?dates={d1:%Y%m%d}-{d2:%Y%m%d}")
+        try:  # test : ESPN accepte-t-il les plages pour cette ligue?
+            fetch_json(plages[0])
+            urls, mode = plages, "par mois"
+            out, erreurs = _collecter(urls)
+        except urllib.error.HTTPError:
+            urls = [f"{base}?dates={debut + dt.timedelta(days=i):%Y%m%d}"
+                    for i in range(jours)]
+            mode = "par jour"
+            out, erreurs = _collecter(urls, paralleles=8)
+
     for err in erreurs[:3]:
         print(f"    ! {err}", file=sys.stderr)
     if erreurs and not out:
         raise RuntimeError(f"ESPN {ligue} : les {len(urls)} requêtes ont échoué")
-    print(f"    ESPN {ligue} : {len(out)} match(s) reçu(s), "
+    print(f"    ESPN {ligue} ({mode}) : {len(out)} match(s) reçu(s), "
           f"{len(erreurs)}/{len(urls)} requête(s) en échec")
+    _CACHE_ESPN[ligue] = out
     return out
 
 
